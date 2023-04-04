@@ -21,6 +21,8 @@ char eroare[100000];
 int wanted_section;
 int wanted_line;
 
+int nr_test;
+
 
 
 void add(char *sir, char* added, int line)
@@ -332,6 +334,173 @@ void extract(char *path, int ws, int w_line)
 
 }
 
+int check_14(char* path)
+{
+    int fd;
+    if (! (fd = open(path, O_RDONLY)))
+    {
+        //ok = -1;
+        //char* chestie = "wrong file";
+        printf("wrong file %s\n", path);
+        //add(eroare, chestie, 1);
+        return -1;
+    }
+
+    char magic[3];
+    lseek(fd, -2, SEEK_END);
+    read(fd, magic, 2);
+    // if (magic[0] != 'Q' || magic[1] != 'p')
+    // {
+    //     // ok = -1;
+    //     // char* chestie = "wrong magic";
+    //     // add(eroare, chestie, 1);
+    //     printf("wrong magic%s \n", path);
+    //     return -1;
+    // }
+
+    //char buffer[8];
+
+    int header_size = 0;
+    lseek(fd, -4, SEEK_END);
+    read(fd, &header_size, 2);
+    
+    lseek(fd, -header_size, SEEK_END);
+    int version = 0;
+    int nr_sections = 0;
+    read(fd, &version, 2);
+    read(fd, &nr_sections, 1);
+
+    // if (! (version >= 120 && version <= 176))
+    // {
+    //     //printf("%d", version);
+    //     // ok = -1;
+    //     // char* chestie = "wrong version";
+    //     // add(eroare, chestie, 1);
+    //     printf("wrong version%s \n", path);
+    //     return -1;
+    // }
+
+    // if (! (nr_sections >= 4 && nr_sections <= 18))
+    // {
+    //     // ok = -1;
+    //     // char* chestie = "wrong sect_nr";
+    //     // add(eroare, chestie, 1);
+    //     printf("wrong sect_nr%s \n", path);
+    //     return -1;
+    // }
+
+    //78 63 40 17 44
+    /*version=<version_number>
+    nr_sections=<no_of_sections>
+    section1: <NAME_1> <TYPE_1> <SIZE_1>
+    section2: <NAME_2> <TYPE_2> <SIZE_2>*/
+    /*
+        SECT_NAME: 6
+    SECT_TYPE: 4
+    SECT_OFFSET: 4
+    SECT_SIZE: 4
+    */
+    int type,size,offset;
+    char name[1000];
+
+    char* buffer;
+    int linie;
+
+    int nr_mare = 2000000000;
+    buffer = malloc( (nr_mare + 20) * sizeof(char));
+    for (int i = 1; i <= nr_sections; i++)
+    {
+        read(fd, &name, 6);
+        read(fd, &type, 4);
+        read(fd, &offset, 4);
+        read(fd, &size, 4);
+
+        if (! (type == 78 || type == 63 || type == 40 || type == 17 || type == 44) )
+        {
+            // ok = -1;
+            // add(eroare, "wrong sect_types", 1);
+            //printf("wrong sect_types %s \n", path);
+            //return -1;
+            continue;
+        }
+        
+        // if (size > nr_mare)
+        //     continue;
+        //printf("%d\n", size);
+        lseek(fd, offset, SEEK_SET);
+        read(fd, buffer, size);
+        
+        linie = 1;
+        
+        for (int i = size - 1; i >= 0; i--)
+        {
+            if (buffer[i] == 13 && buffer[i + 1] == 10)////din pdf
+                linie++;
+            if (linie == 14)
+            {
+                free(buffer);
+                return 1;
+            }
+        }
+
+
+        
+    }
+    free(buffer);
+
+    return 0;
+}
+
+
+void findall(char* path)
+{
+    DIR* dir;
+    struct dirent *dirEntry;
+    struct stat inode;
+    char name[MAX_PATH_LEN];
+
+    dir = opendir(path);
+    if (dir == 0)
+    {
+        return;
+    }
+
+    while ( (dirEntry = readdir(dir)) != 0)
+    {
+       if ( strcmp(dirEntry->d_name, ".") == 0|| strcmp(dirEntry->d_name, "..") == 0 )
+            continue; 
+
+        snprintf(name, MAX_PATH_LEN, "%s/%s", path, dirEntry->d_name);
+
+        if (! lstat(name, &inode))
+        {
+            if (S_ISDIR(inode.st_mode))
+            {
+                findall(name);
+                    
+            }
+            else if (S_ISREG(inode.st_mode))
+            {      
+                  int check = check_14(name);
+                  if (check == 1)
+                  {
+                    nr_test++;
+                    ///adaug acest fisier
+                    add(output, name, 1);
+                  }
+                  else
+                  {
+                    ///nu adaug acest fisier
+                  }
+
+            }
+        }       
+    } 
+    closedir(dir);
+}
+
+
+
 
 int main(int argc, char** argv)
 {
@@ -411,6 +580,7 @@ int main(int argc, char** argv)
         {
             printf("%s", eroare);
         }
+        return 0;
     }
 
     if (strcmp(argv[1], "extract") == 0)
@@ -447,7 +617,31 @@ int main(int argc, char** argv)
         {
             printf("%s", eroare);
         }
+
+        return 0;
         
+    }
+    if (strcmp(argv[1], "findall") == 0)
+    {
+        char path[10000];
+        strcpy(path, argv[2] + 5);
+
+        struct stat fileMetaData;
+        if ( stat(path, &fileMetaData) < 0)
+        {
+            char* chestie = "invalid directory path\n";          
+            printf("%s", eroare);
+            printf("%s", chestie);
+
+            return 0;
+            //exit(2);
+        }
+
+        findall(path);
+        printf("%s", output);
+        //printf("%d\n", nr_test);
+
+        return 0;
     }
     
     return 0;
