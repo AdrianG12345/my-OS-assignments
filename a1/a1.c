@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include  <string.h>
 
@@ -17,6 +18,8 @@ int recursive;
 int ok;
 char output[1000000];
 char eroare[100000];
+int wanted_section;
+int wanted_line;
 
 
 
@@ -127,18 +130,21 @@ void parsare(char* path )
         return;
     }
 
+    //char buffer[8];
+
     int header_size = 0;
     lseek(fd, -4, SEEK_END);
-    read(fd, header_size, 2);
-
+    read(fd, &header_size, 2);
+    
     lseek(fd, -header_size, SEEK_END);
     int version = 0;
     int nr_sections = 0;
-    read(fd, version, 2);
-    read(fd, nr_sections, 1);
+    read(fd, &version, 2);
+    read(fd, &nr_sections, 1);
 
     if (! (version >= 120 && version <= 176))
     {
+        //printf("%d", version);
         ok = -1;
         char* chestie = "wrong version";
         add(eroare, chestie, 1);
@@ -168,27 +174,162 @@ void parsare(char* path )
     char name[1000][1000];
     for (int i = 1; i <= nr_sections; i++)
     {
-        read(fd, name[i], 6);
-        read(fd, type[i], 4);
-        read(fd, offset[i], 4);
-        read(fd, size[i], 4);
+        read(fd, &name[i], 6);
+        read(fd, &type[i], 4);
+        read(fd, &offset[i], 4);
+        read(fd, &size[i], 4);
 
         if (! (type[i] == 78 || type[i] == 63 || type[i] == 40 || type[i] == 17 || type[i] == 44) )
         {
             ok = -1;
-            add(eroare, "wrong sect_type", 1);
-            return -1;
+            add(eroare, "wrong sect_types", 1);
+            return;
         }
     }
 
-
+    
     printf("SUCCESS\n");
     printf("version=%d\n", version);
     printf("nr_sections=%d\n", nr_sections);
     for (int i = 1; i <= nr_sections; i++)
     {
-        printf("section%d %s %d %d\n", i, name[i], type[i], size[i]);
+        printf("section%d: %s %d %d\n", i, name[i], type[i], size[i]);
     }
+}
+
+void extract(char *path, int ws, int w_line)
+{
+    int fd;
+    if (! (fd = open(path, O_RDONLY)))
+    {
+        ok = -1;
+        char* chestie = "invalid file";
+        add(eroare, chestie, 1);
+        return;
+    }
+
+    char magic[3];
+    lseek(fd, -2, SEEK_END);
+    read(fd, magic, 2);
+
+    int header_size = 0;
+    lseek(fd, -4, SEEK_END);
+    read(fd, &header_size, 2);
+    
+    lseek(fd, -header_size, SEEK_END);
+    int version = 0;
+    read(fd, &version, 2);
+
+    int nr_sections = 0;
+    read(fd, &nr_sections, 1);
+
+
+    int section_size = 18;
+    lseek(fd, (ws - 1) * section_size, SEEK_CUR);
+
+        int type,offset,size;
+    char name[100000];
+
+    // for (int i = 1; i < ws; i++)
+    // {
+    //     read(fd, &name, 6);
+    //     read(fd, &type, 4);
+    //     read(fd, &offset, 4);
+    //     read(fd, &size, 4);
+    // }
+
+
+    read(fd, &name, 6);
+    read(fd, &type, 4);
+    read(fd, &offset, 4);
+    read(fd, &size, 4);
+
+    //printf("%s %d %d %d", name, type, offset, size);
+    
+    char* buffer;
+    buffer = malloc( (size + 20) * sizeof(char));
+    lseek(fd, offset, SEEK_SET);
+    read(fd, buffer, size);
+
+    int linie = 1;
+
+    char* ceva;
+    ceva = malloc( (size + 20) * sizeof(char));
+    int len = 0;
+    
+    for (int i = size - 1; i >= 0; i--)
+    {
+        if (buffer[i] == 13 && buffer[i + 1] == 10)////din pdf
+          linie++;
+        else if (linie == w_line)
+        {
+            ceva[len++] = buffer[i];
+        }
+        else if (linie > w_line)
+             break;
+    }
+    //printf("%d\n   ", linie);
+    
+    if (linie < w_line)
+    {
+        ok = -1;
+        add(eroare, "invalid line", 1);
+        return;
+    }
+
+    printf("SUCCESS");
+    for (int i = len - 1; i >= 0; i--)
+        printf("%c", ceva[i]);
+    printf("\n");
+
+
+
+
+    free(ceva);
+    free(buffer);
+
+
+    // int MAX_SIZE = 5000;
+    // char buffer[MAX_SIZE + 10];
+    // int i = 0;
+    // int linie = 1;
+    // int ramas, citit;
+
+    // //int len = 0;
+    // while (i < size)
+    // {
+    //     ramas = size - i;
+    //     if (ramas >= MAX_SIZE)
+    //     {
+    //         i += MAX_SIZE;
+    //         read(fd, &buffer, MAX_SIZE);
+    //         citit = MAX_SIZE;
+    //     }
+    //     else
+    //     {
+    //         read(fd, &buffer, ramas);
+    //         i += ramas;
+    //         citit = ramas;
+    //     }
+
+    //     for (int i = 0; i < citit; i++)
+    //     {
+    //         if (buffer[i] == 13 && buffer[i + 1] == 10)////din pdf
+    //             linie++;
+    //         else if (linie == w_line)
+    //         {
+    //             //chestie[len++] = buffer[i];
+    //             printf("%c", buffer[i]);
+    //         }
+    //         if (linie > w_line)
+    //         {
+    //             printf("\n");;
+    //             return;
+    //         }
+    //     }
+    //}
+
+
 }
 
 
@@ -253,7 +394,7 @@ int main(int argc, char** argv)
         return 0;
     }
     
-    else if (strcmp(argv[2], "parse") == 0)
+     if (strcmp(argv[1], "parse") == 0)
     {
         char path[100000];
         strcpy(path, "ceva");
@@ -264,11 +405,49 @@ int main(int argc, char** argv)
             printf("%sinvalid path", eroare);
             return 0;
         }
+
         parsare(path);
         if (ok == -1)
         {
             printf("%s", eroare);
         }
+    }
+
+    if (strcmp(argv[1], "extract") == 0)
+    {
+        char path[100000];
+        strcpy(path, "ceva");
+        add(output, "SUCCESS", 1);
+        for (int i = 2; i < argc; i++)
+        {
+            if ( strncmp(argv[i], "path=", strlen("path=")) == 0)
+                strcpy(path, argv[i] + 5);
+            else if ( strncmp(argv[i], "section=", strlen("section=") ) == 0)
+            {
+                wanted_section = 0;
+                for (int j = strlen("section="); j < strlen(argv[i]); j++)
+                {
+                    wanted_section *= 10;
+                    wanted_section += argv[i][j] - '0';
+                }
+            }
+            else if (strncmp(argv[i], "line=", strlen("line=")) == 0 )
+            {
+                wanted_line = 0;
+                for (int j = strlen("line="); j < strlen(argv[i]); j++)
+                {
+                    wanted_line *= 10;
+                    wanted_line += argv[i][j] - '0';
+                }
+            }
+        }
+        extract(path, wanted_section, wanted_line);
+
+        if (ok == -1)
+        {
+            printf("%s", eroare);
+        }
+        
     }
     
     return 0;
