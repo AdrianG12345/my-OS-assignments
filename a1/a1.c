@@ -20,13 +20,21 @@ char eroare[100000];
 
 
 
-void add(char *sir, char* added)
+void add(char *sir, char* added, int line)
 {
 
     int len = strlen(sir);
     strcpy(sir + len, added);
-    len = strlen(sir);
-    strcpy(sir + len, "\n");
+    if (line)
+    {
+        len = strlen(sir);
+        strcpy(sir + len, "\n");
+    }
+
+}
+void add2(char* sir, char* added)
+{
+
 }
 
 
@@ -58,10 +66,10 @@ void listare(char* path, int size_greater, int has_perm_write)
                 {
                     if ( has_perm_write == 1 &&  (inode.st_mode & S_IWUSR) != 0)
                     {
-                        add(output, name);
+                        add(output, name, 1);
                     }
                     else if (has_perm_write == 0)
-                        add(output, name);
+                        add(output, name, 1);
                 }
 
                 if (recursive == 1)
@@ -84,17 +92,103 @@ void listare(char* path, int size_greater, int has_perm_write)
                 {
                     if ( has_perm_write == 1 &&  (inode.st_mode & S_IWUSR) != 0)
                     {
-                        add(output, name);
+                        add(output, name, 1);
                     }
                     else if (has_perm_write == 0)
                     {
-                        add(output, name);
+                        add(output, name, 1);
                     }
                 }    
             }
         }       
     } 
     closedir(dir);
+}
+
+void parsare(char* path )
+{
+    int fd;
+    if (! (fd = open(path, O_RDONLY)))
+    {
+        ok = -1;
+        char* chestie = "wrong file";
+        add(eroare, chestie, 1);
+        return;
+    }
+
+    char magic[3];
+    lseek(fd, -2, SEEK_END);
+    read(fd, magic, 2);
+    if (magic[0] != 'Q' || magic[1] != 'p')
+    {
+        ok = -1;
+        char* chestie = "wrong magic";
+        add(eroare, chestie, 1);
+        return;
+    }
+
+    int header_size = 0;
+    lseek(fd, -4, SEEK_END);
+    read(fd, header_size, 2);
+
+    lseek(fd, -header_size, SEEK_END);
+    int version = 0;
+    int nr_sections = 0;
+    read(fd, version, 2);
+    read(fd, nr_sections, 1);
+
+    if (! (version >= 120 && version <= 176))
+    {
+        ok = -1;
+        char* chestie = "wrong version";
+        add(eroare, chestie, 1);
+        return;
+    }
+
+    if (! (nr_sections >= 4 && nr_sections <= 18))
+    {
+        ok = -1;
+        char* chestie = "wrong sect_nr";
+        add(eroare, chestie, 1);
+        return;
+    }
+
+    //78 63 40 17 44
+    /*version=<version_number>
+    nr_sections=<no_of_sections>
+    section1: <NAME_1> <TYPE_1> <SIZE_1>
+    section2: <NAME_2> <TYPE_2> <SIZE_2>*/
+    /*
+        SECT_NAME: 6
+    SECT_TYPE: 4
+    SECT_OFFSET: 4
+    SECT_SIZE: 4
+    */
+    int type[100],size[100],offset[100];
+    char name[1000][1000];
+    for (int i = 1; i <= nr_sections; i++)
+    {
+        read(fd, name[i], 6);
+        read(fd, type[i], 4);
+        read(fd, offset[i], 4);
+        read(fd, size[i], 4);
+
+        if (! (type[i] == 78 || type[i] == 63 || type[i] == 40 || type[i] == 17 || type[i] == 44) )
+        {
+            ok = -1;
+            add(eroare, "wrong sect_type", 1);
+            return -1;
+        }
+    }
+
+
+    printf("SUCCESS\n");
+    printf("version=%d\n", version);
+    printf("nr_sections=%d\n", nr_sections);
+    for (int i = 1; i <= nr_sections; i++)
+    {
+        printf("section%d %s %d %d\n", i, name[i], type[i], size[i]);
+    }
 }
 
 
@@ -157,6 +251,24 @@ int main(int argc, char** argv)
         }
         
         return 0;
+    }
+    
+    else if (strcmp(argv[2], "parse") == 0)
+    {
+        char path[100000];
+        strcpy(path, "ceva");
+        if ( strncmp(argv[2], "path=", strlen("path=")) == 0)
+                strcpy(path, argv[2] + 5);
+        else
+        {
+            printf("%sinvalid path", eroare);
+            return 0;
+        }
+        parsare(path);
+        if (ok == -1)
+        {
+            printf("%s", eroare);
+        }
     }
     
     return 0;
