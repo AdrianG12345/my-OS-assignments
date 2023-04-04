@@ -43,19 +43,27 @@ void listare(char* path, int size_greater, int has_perm_write)
         return;
     }
 
-        while ( (dirEntry = readdir(dir)) != 0)
+    while ( (dirEntry = readdir(dir)) != 0)
     {
-        if ( strcmp(dirEntry->d_name, ".") == 0|| strcmp(dirEntry->d_name, "..") == 0 )
+       if ( strcmp(dirEntry->d_name, ".") == 0|| strcmp(dirEntry->d_name, "..") == 0 )
             continue; 
 
         snprintf(name, MAX_PATH_LEN, "%s/%s", path, dirEntry->d_name);
-          
 
         if (! lstat(name, &inode))
         {
             if (S_ISDIR(inode.st_mode))
             {
-                add(output, name);
+                if (inode.st_size > size_greater)
+                {
+                    if ( has_perm_write == 1 &&  (inode.st_mode & S_IWUSR) != 0)
+                    {
+                        add(output, name);
+                    }
+                    else if (has_perm_write == 0)
+                        add(output, name);
+                }
+
                 if (recursive == 1)
                 {
                     
@@ -74,9 +82,15 @@ void listare(char* path, int size_greater, int has_perm_write)
             {      
                 if (inode.st_size > size_greater)
                 {
-                    add(output, name);
+                    if ( has_perm_write == 1 &&  (inode.st_mode & S_IWUSR) != 0)
+                    {
+                        add(output, name);
+                    }
+                    else if (has_perm_write == 0)
+                    {
+                        add(output, name);
+                    }
                 }    
-                
             }
         }       
     } 
@@ -86,7 +100,7 @@ void listare(char* path, int size_greater, int has_perm_write)
 
 int main(int argc, char** argv)
 {
-    strcpy(output, "SUCCES\n");
+    strcpy(output, "SUCCESS\n");
     strcpy(eroare, "ERROR\n");
     if (argc < 2)
     {
@@ -103,7 +117,6 @@ int main(int argc, char** argv)
 
     if (strcmp(argv[1], "list") == 0)
     {
-        //printf("a intrat List\n");
         ok = 1;
 
         char path[100000];
@@ -122,16 +135,15 @@ int main(int argc, char** argv)
                     size_greater *= 10;
                     size_greater += argv[i][j] - '0';
                 }
-                printf("%d ", size_greater);
             }
             else if ( strncmp(argv[i], "has_perm_write", strlen("has_perm_write")) == 0 )
                 has_perm_write = 1;
             else if ( strncmp(argv[i], "path=", strlen("path=")) == 0)
-                strcpy(path, argv[i] + strlen("path="));
+                strcpy(path, argv[i] + 5);
         }
-        
+        //printf("%d ", has_perm_write);
         struct stat fileMetaData;
-        if (lstat(path, &fileMetaData) < 0)
+        if ( stat(path, &fileMetaData) < 0)
         {
             char* chestie = "invalid directory path\n";          
             printf("%s", eroare);
