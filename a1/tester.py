@@ -1,34 +1,3 @@
-
-Skip to content
-Pull requests
-Issues
-Codespaces
-Marketplace
-Explore
-@AdrianG12345
-AdrianG12345 /
-chestiiOS
-Private
-
-Cannot fork because you own this repository and are not a member of any organizations.
-
-Code
-Issues
-Pull requests
-Actions
-Projects
-Security
-Insights
-
-    Settings
-
-chestiiOS/tester.py /
-@AdrianG12345
-AdrianG12345 Add files via upload
-Latest commit 15e44bb Apr 4, 2023
-History
-1 contributor
-842 lines (786 sloc) 30.4 KB
 #!/usr/bin/env python3
 import re, os, sys, subprocess, json, base64, io, errno
 import posixpath
@@ -871,20 +840,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-Footer
-© 2023 GitHub, Inc.
-Footer navigation
-
-    Terms
-    Privacy
-    Security
-    Status
-    Docs
-    Contact GitHub
-    Pricing
-    API
-    Training
-    Blog
-    About
-
-chestiiOS/tester.py at main · AdrianG12345/chestiiOS 
