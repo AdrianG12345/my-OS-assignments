@@ -349,6 +349,13 @@ int check_14(char* path, long long file_size)
     char magic[3];
     lseek(fd, -2, SEEK_END);
     read(fd, magic, 2);
+    if (magic[0] != 'Q' || magic[1] != 'p')
+    {
+        //ok = -1;
+        //char* chestie = "wrong magic";
+        //add(eroare, chestie, 1);
+        return 0;
+    }
 
     int header_size = 0;
     lseek(fd, -4, SEEK_END);
@@ -359,6 +366,16 @@ int check_14(char* path, long long file_size)
     int nr_sections = 0;
     read(fd, &version, 2);
     read(fd, &nr_sections, 1);
+
+     if (! (version >= 120 && version <= 176))
+    {
+        return 0;
+    }
+
+    if (! (nr_sections >= 4 && nr_sections <= 18))
+    {
+        return 0;
+    }
     /*VERSION: 2
 NO_OF_SECTIONS: 1
 SECTION_HEADERS: NO_OF_SECTIONS * sizeof(SECTION_HEADER)
@@ -411,6 +428,10 @@ MAGIC: 2*/
         if (nr == -1)
             return 0;
 
+        if (! (type[i] == 78 || type[i] == 63 || type[i] == 40 || type[i] == 17 || type[i] == 44) )
+        {
+            return 0;
+        }
         //printf("size\n");
         
         
@@ -443,21 +464,22 @@ MAGIC: 2*/
         //     }
         // }  
     }
+    int linie;
     for (int i = 1; i <= nr_sections; i++)
     {
         if (offset[i] > file_size)
             continue;
 
-        int linie = 1;
+        linie = 1;
         
         lseek(fd, offset[i], SEEK_SET);
         read(fd, buffer, size[i]);
-        for (int k = size[i] - 1; k >= 0; k--)
+        for (int k = size[i] - 2; k >= 0; k--)
         {
             if (buffer[k] == 13 && buffer[k + 1] == 10)////din pdf
             {
                 linie++;
-                if (linie == 15)
+                if (linie > 14)
                 {
                     free(buffer);
                     return 1;
@@ -498,7 +520,7 @@ void findall(char* path)
                 findall(name);
                     
             }
-            else //if (S_ISREG(inode.st_mode))
+            else if (S_ISREG(inode.st_mode))
             {      
                   //  printf("\n\n%s %ld\n",name,  inode.st_size);
                   int check = check_14(name, inode.st_size);
