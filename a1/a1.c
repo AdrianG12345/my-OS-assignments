@@ -334,7 +334,7 @@ void extract(char *path, int ws, int w_line)
 
 }
 
-int check_14(char* path)
+int check_14(char* path, long long file_size)
 {
     int fd;
     if (! (fd = open(path, O_RDONLY)))
@@ -349,16 +349,6 @@ int check_14(char* path)
     char magic[3];
     lseek(fd, -2, SEEK_END);
     read(fd, magic, 2);
-    // if (magic[0] != 'Q' || magic[1] != 'p')
-    // {
-    //     // ok = -1;
-    //     // char* chestie = "wrong magic";
-    //     // add(eroare, chestie, 1);
-    //     printf("wrong magic%s \n", path);
-    //     return -1;
-    // }
-
-    //char buffer[8];
 
     int header_size = 0;
     lseek(fd, -4, SEEK_END);
@@ -369,26 +359,16 @@ int check_14(char* path)
     int nr_sections = 0;
     read(fd, &version, 2);
     read(fd, &nr_sections, 1);
-
-    // if (! (version >= 120 && version <= 176))
-    // {
-    //     //printf("%d", version);
-    //     // ok = -1;
-    //     // char* chestie = "wrong version";
-    //     // add(eroare, chestie, 1);
-    //     printf("wrong version%s \n", path);
-    //     return -1;
-    // }
-
-    // if (! (nr_sections >= 4 && nr_sections <= 18))
-    // {
-    //     // ok = -1;
-    //     // char* chestie = "wrong sect_nr";
-    //     // add(eroare, chestie, 1);
-    //     printf("wrong sect_nr%s \n", path);
-    //     return -1;
-    // }
-
+    /*VERSION: 2
+NO_OF_SECTIONS: 1
+SECTION_HEADERS: NO_OF_SECTIONS * sizeof(SECTION_HEADER)
+SECTION_HEADER: 6 + 4 + 4 + 4
+SECT_NAME: 6
+SECT_TYPE: 4
+SECT_OFFSET: 4
+SECT_SIZE: 4
+HEADER_SIZE: 2
+MAGIC: 2*/
     //78 63 40 17 44
     /*version=<version_number>
     nr_sections=<no_of_sections>
@@ -400,51 +380,90 @@ int check_14(char* path)
     SECT_OFFSET: 4
     SECT_SIZE: 4
     */
-    int type,size,offset;
+    int type[100],size[100],offset[100];
     char name[1000];
 
     char* buffer;
-    int linie;
+    
 
     int nr_mare = 2000000000;
     buffer = malloc( (nr_mare + 20) * sizeof(char));
+    //printf("nr_sections%d\n", nr_sections);
     for (int i = 1; i <= nr_sections; i++)
     {
-        read(fd, &name, 6);
-        read(fd, &type, 4);
-        read(fd, &offset, 4);
-        read(fd, &size, 4);
+        type[i] = size[i] = offset[i] = 0;
+        int nr = read(fd, &name, 6);
+        if (nr == -1 || nr == 0)
+            return 0;
 
-        if (! (type == 78 || type == 63 || type == 40 || type == 17 || type == 44) )
-        {
-            // ok = -1;
-            // add(eroare, "wrong sect_types", 1);
-            //printf("wrong sect_types %s \n", path);
-            //return -1;
-            continue;
-        }
+        //printf("name ");
+        nr = read(fd, &type[i], 4);
+        if (nr == -1 || nr == 0)
+            return 0;
+
+        //printf("type ");
+        nr = read(fd, &offset[i], 4);
+        if (nr == -1 || nr == 0)
+            return 0;
+
+        //printf("offset ");
+        nr = read(fd, &size[i], 4);
+        if (nr == -1)
+            return 0;
+
+        //printf("size\n");
+        
         
         // if (size > nr_mare)
         //     continue;
-        //printf("%d\n", size);
-        lseek(fd, offset, SEEK_SET);
-        read(fd, buffer, size);
+        // printf("section:%d %d %d\n",i, offset, size);
+
+        // if (offset > file_size)
+        //     continue; 
         
-        linie = 1;
+        //printf("offset bun\n");
         
-        for (int i = size - 1; i >= 0; i--)
+        // lseek(fd, offset[i], SEEK_SET);
+        // if ( read(fd, buffer, size) == -1)
+        //     continue;
+        // int linie = 1;
+        
+        
+        // for (int k = size - 1; k >= 0; k--)
+        // {
+        //     if (buffer[k] == 13 && buffer[k + 1] == 10)////din pdf
+        //     {
+        //         linie++;
+        //         if (linie == 14)
+        //         {
+        //             free(buffer);
+        //             printf("okay\n\n");
+        //             return 1;
+        //         }
+        //     }
+        // }  
+    }
+    for (int i = 1; i <= nr_sections; i++)
+    {
+        if (offset[i] > file_size)
+            continue;
+
+        int linie = 1;
+        
+        lseek(fd, offset[i], SEEK_SET);
+        read(fd, buffer, size[i]);
+        for (int k = size[i] - 1; k >= 0; k--)
         {
-            if (buffer[i] == 13 && buffer[i + 1] == 10)////din pdf
-                linie++;
-            if (linie == 14)
+            if (buffer[k] == 13 && buffer[k + 1] == 10)////din pdf
             {
-                free(buffer);
-                return 1;
+                linie++;
+                if (linie == 15)
+                {
+                    free(buffer);
+                    return 1;
+                }
             }
-        }
-
-
-        
+        }  
     }
     free(buffer);
 
@@ -479,20 +498,16 @@ void findall(char* path)
                 findall(name);
                     
             }
-            else if (S_ISREG(inode.st_mode))
+            else //if (S_ISREG(inode.st_mode))
             {      
-                  int check = check_14(name);
+                  //  printf("\n\n%s %ld\n",name,  inode.st_size);
+                  int check = check_14(name, inode.st_size);
                   if (check == 1)
                   {
                     nr_test++;
                     ///adaug acest fisier
                     add(output, name, 1);
                   }
-                  else
-                  {
-                    ///nu adaug acest fisier
-                  }
-
             }
         }       
     } 
@@ -639,7 +654,7 @@ int main(int argc, char** argv)
 
         findall(path);
         printf("%s", output);
-        //printf("%d\n", nr_test);
+        printf("%d\n", nr_test);
 
         return 0;
     }
