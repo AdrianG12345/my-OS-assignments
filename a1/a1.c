@@ -654,7 +654,7 @@ int main(int argc, char** argv)
 
         findall(path);
         printf("%s", output);
-        printf("%d\n", nr_test);
+       // printf("%d\n", nr_test);
 
         return 0;
     }
