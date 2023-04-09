@@ -21,7 +21,6 @@ char eroare[100000];
 int wanted_section;
 int wanted_line;
 
-int nr_test;
 
 
 
@@ -411,58 +410,38 @@ MAGIC: 2*/
         type[i] = size[i] = offset[i] = 0;
         int nr = read(fd, &name, 6);
         if (nr == -1 || nr == 0)
+        {
+            free(buffer);
             return 0;
-
-        //printf("name ");
+        }
         nr = read(fd, &type[i], 4);
         if (nr == -1 || nr == 0)
+        {
+            free(buffer);
             return 0;
+        }
 
         //printf("type ");
         nr = read(fd, &offset[i], 4);
         if (nr == -1 || nr == 0)
+         {
+            free(buffer);
             return 0;
+        }
 
         //printf("offset ");
         nr = read(fd, &size[i], 4);
         if (nr == -1)
+        {
+            free(buffer);
             return 0;
+        }
 
         if (! (type[i] == 78 || type[i] == 63 || type[i] == 40 || type[i] == 17 || type[i] == 44) )
         {
+            free(buffer);
             return 0;
         }
-        //printf("size\n");
-        
-        
-        // if (size > nr_mare)
-        //     continue;
-        // printf("section:%d %d %d\n",i, offset, size);
-
-        // if (offset > file_size)
-        //     continue; 
-        
-        //printf("offset bun\n");
-        
-        // lseek(fd, offset[i], SEEK_SET);
-        // if ( read(fd, buffer, size) == -1)
-        //     continue;
-        // int linie = 1;
-        
-        
-        // for (int k = size - 1; k >= 0; k--)
-        // {
-        //     if (buffer[k] == 13 && buffer[k + 1] == 10)////din pdf
-        //     {
-        //         linie++;
-        //         if (linie == 14)
-        //         {
-        //             free(buffer);
-        //             printf("okay\n\n");
-        //             return 1;
-        //         }
-        //     }
-        // }  
     }
     int linie;
     for (int i = 1; i <= nr_sections; i++)
@@ -487,8 +466,8 @@ MAGIC: 2*/
             }
         }  
     }
-    free(buffer);
 
+    free(buffer);
     return 0;
 }
 
@@ -526,7 +505,6 @@ void findall(char* path)
                   int check = check_14(name, inode.st_size);
                   if (check == 1)
                   {
-                    nr_test++;
                     ///adaug acest fisier
                     add(output, name, 1);
                   }
@@ -676,7 +654,6 @@ int main(int argc, char** argv)
 
         findall(path);
         printf("%s", output);
-       // printf("%d\n", nr_test);
 
         return 0;
     }
