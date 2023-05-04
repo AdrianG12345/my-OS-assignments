@@ -14,62 +14,37 @@
 #include <semaphore.h>
 
 int semID;
+int altSem;
 int incepe5 = 0;
 int incepe4 = 0;
 sem_t sem1, sem2;
 
 sem_t semnal2;
 int count;
-pthread_mutex_t lock, lacat, lacat1;
-pthread_cond_t cond, condition, condition1;
+pthread_mutex_t lock;
+pthread_cond_t cond;
 
-void destroy_them()
+void destroythem()
 {
-    if (pthread_mutex_destroy(&lacat) != 0)
+    if (pthread_mutex_destroy(&lock) != 0)
     {
         perror("Cannot destroy the lock");
-        
     }
 
-    if (pthread_cond_destroy(&condition) != 0)
+    if (pthread_cond_destroy(&cond) != 0)
     {
         perror("Cannot destroy the condition variable");
-        
-    }
-
-    if (pthread_mutex_destroy(&lacat1) != 0)
-    {
-        perror("Cannot destroy the lock");
-        
-    }
-
-    if (pthread_cond_destroy(&condition1) != 0)
-    {
-        perror("Cannot destroy the condition variable");
-        
     }
 }
-void create_them()
+void createthem()
 {
-    if (pthread_mutex_init(&lacat, NULL) != 0)
+    if (pthread_mutex_init(&lock, NULL) != 0)
     {
         perror("Cannot initialize the lock");
-       
     }
-    if (pthread_cond_init(&condition, NULL) != 0)
+    if (pthread_cond_init(&cond, NULL) != 0)
     {
         perror("Cannot initialize the condition variable");
-        
-    }
-    if (pthread_mutex_init(&lacat1, NULL) != 0)
-    {
-        perror("Cannot initialize the lock");
-        
-    }
-    if (pthread_cond_init(&condition, NULL) != 0)
-    {
-        perror("Cannot initialize the condition variable");
-       
     }
 }
 
@@ -120,7 +95,7 @@ void *functieP3(void *arg)
         /*
         T2.2 trebuie sa fi inceput deja
         */
-        P(semID, 1);
+        P(semID, 1); /// deci scad unul din semaforul sau
 
         info(BEGIN, 3, 5);
 
@@ -130,7 +105,8 @@ void *functieP3(void *arg)
         T2.4 poate sa inceapa
         */
 
-        V(semID, 0);
+        V(semID, 0); /// daca poate sa inceapa ii dau drept sa inceapa
+        ////crescandu-i cu unu semaforul sau
     }
     else
     {
@@ -145,10 +121,13 @@ void *functieP3(void *arg)
 void *func(void *arg)
 {
     int id = *(int *)arg;
+    ///daca are loc ii dau begin
+    P(altSem, 0);
     info(BEGIN, 4, id);
 
     info(END, 4, id);
-
+    ///dupa ce il termin eliberez loc
+    V(altSem, 0);
     free(arg);
     return NULL;
 }
@@ -164,7 +143,7 @@ void *func2(void *arg)
         pthread_mutex_lock(&lock);
 
         count++;
-        pthread_cond_broadcast(&cond);
+        pthread_cond_signal(&cond);
         pthread_mutex_unlock(&lock);
 
         /// astept semnal ca sa pot da end
@@ -177,10 +156,12 @@ void *func2(void *arg)
         pthread_mutex_lock(&lock);
         while (count != 4)
             pthread_cond_wait(&cond, &lock);
-
-        info(END, 4, id);
         /// nu-s sigur daca trebuie
         pthread_mutex_unlock(&lock);
+
+        info(END, 4, id);
+        
+
         /// le zic la celelalte 4 ca se pot termina
         for (int i = 0; i < 4; i++)
             sem_post(&semnal2);
@@ -207,7 +188,7 @@ void *funcP2(void *arg)
     {
         /// incepe doar dupa T3.5 s-a terminat
 
-        P(semID, 0);//asteapta sa scada din ala
+        P(semID, 0); // asteapta sa scada din ala
 
         // pthread_mutex_lock(&lacat1);
         // while (incepe4 != 1)
@@ -234,8 +215,7 @@ int main()
 
     info(BEGIN, 1, 0);
 
-    //create_them();
-    semID = semget(IPC_PRIVATE, 2, 0666 | IPC_CREAT);///internet
+    semID = semget(IPC_PRIVATE, 2, 0666 | IPC_CREAT); /// internet
     semctl(semID, 0, SETVAL, 0);
     semctl(semID, 1, SETVAL, 0);
 
@@ -265,33 +245,11 @@ int main()
 
                 pthread_t th[50];
 
-                /// primele 10
-                for (int i = 0; i < 2; i++)
-                {
-                    for (int k = 1; k <= 5; k++)
-                    {
-                        int *id = malloc(sizeof(int));
-                        *id = (i * 5 + k);
-                        pthread_create(&th[*id], NULL, func, id);
-                        // pthread_join(th[*id], NULL);
-                    }
-                    for (int k = 1; k <= 5; k++)
-                        pthread_join(th[i * 5 + k], NULL);
-                }
-
                 /// cel cu cerintele mari
                 sem_init(&semnal2, 0, 0);
                 count = 0;
-                if (pthread_mutex_init(&lock, NULL) != 0)
-                {
-                    perror("Cannot initialize the lock");
-                    exit(2);
-                }
-                if (pthread_cond_init(&cond, NULL) != 0)
-                {
-                    perror("Cannot initialize the condition variable");
-                    exit(3);
-                }
+
+                createthem(); /// lock si cond initialization
 
                 for (int i = 11; i <= 15; i++)
                 { /// T4.13
@@ -303,42 +261,69 @@ int main()
                 for (int i = 11; i <= 15; i++)
                     pthread_join(th[i], NULL);
 
-                if (pthread_mutex_destroy(&lock) != 0)
-                {
-                    perror("Cannot destroy the lock");
-                    return 8;
-                }
+                destroythem(); /// free lock and cond mutexes
 
-                if (pthread_cond_destroy(&cond) != 0)
-                {
-                    perror("Cannot destroy the condition variable");
-                    return 9;
-                }
+                altSem = semget(IPC_PRIVATE, 2, 0666 | IPC_CREAT); /// internet
+                semctl(altSem, 0, SETVAL, 5);///ii dau 5 valori
 
-                // 16 to 35
-                for (int i = 3; i <= 6; i++)
+                int *id;
+                for (int i = 1; i <= 39; i++)
                 {
-                    for (int k = 1; k <= 5; k++)
-                    {
-                        int *id = malloc(sizeof(int));
-                        *id = (i * 5 + k);
-                        pthread_create(&th[*id], NULL, func, id);
-                        // pthread_join(th[*id], NULL);
-                    }
-                    for (int k = 1; k <= 5; k++)
-                        pthread_join(th[i * 5 + k], NULL);
-                }
+                    if (i == 11)
+                        i = 16;
 
-                /// 36 to 39
-                for (int i = 36; i <= 39; i++)
-                {
-                    int *id = malloc(sizeof(int));
+                    id = malloc(sizeof(int));
                     *id = i;
-                    pthread_create(&th[*id], NULL, func, id);
-                    // pthread_join(th[*id], NULL);
+                    pthread_create(&th[i], NULL, func, id);
+                    
                 }
-                for (int i = 36; i <= 39; i++)
+
+                for (int i = 1; i <= 39; i++)
+                {
+                    if (i == 11)
+                        i = 16;
                     pthread_join(th[i], NULL);
+                }
+
+                // for (int i = 0; i < 2; i++)
+                // {
+                //     for (int k = 1; k <= 5; k++)
+                //     {
+                //         int *id = malloc(sizeof(int));
+                //         *id = (i * 5 + k);
+                //         pthread_create(&th[*id], NULL, func, id);
+                //         // pthread_join(th[*id], NULL);
+                //     }
+                //     for (int k = 1; k <= 5; k++)
+                //         pthread_join(th[i * 5 + k], NULL);
+                // }
+
+                
+
+                // // 16 to 35
+                // for (int i = 3; i <= 6; i++)
+                // {
+                //     for (int k = 1; k <= 5; k++)
+                //     {
+                //         int *id = malloc(sizeof(int));
+                //         *id = (i * 5 + k);
+                //         pthread_create(&th[*id], NULL, func, id);
+                //         // pthread_join(th[*id], NULL);
+                //     }
+                //     for (int k = 1; k <= 5; k++)
+                //         pthread_join(th[i * 5 + k], NULL);
+                // }
+
+                // /// 36 to 39
+                // for (int i = 36; i <= 39; i++)
+                // {
+                //     int *id = malloc(sizeof(int));
+                //     *id = i;
+                //     pthread_create(&th[*id], NULL, func, id);
+                //     // pthread_join(th[*id], NULL);
+                // }
+                // for (int i = 36; i <= 39; i++)
+                //     pthread_join(th[i], NULL);
 
                 /*rest of code*/
                 wait(NULL);
@@ -361,9 +346,6 @@ int main()
             else
             {
                 /// process 2 code
-                // semID = semget(100000, 2, 0);
-
-                
 
                 pthread_t th[6];
                 for (int i = 1; i <= 4; i++)
@@ -420,9 +402,10 @@ int main()
 
                     sem_init(&sem1, 0, 0);
                     sem_init(&sem2, 0, 0);
+                    int *id;
                     for (int i = 1; i <= 5; i++)
                     {
-                        int *id = malloc(sizeof(int));
+                        id = malloc(sizeof(int));
                         *id = i;
                         pthread_create(&th[i], NULL, functieP3, id);
                     }
@@ -442,7 +425,6 @@ int main()
             wait(NULL); // dupa p2 sau p3 asteapta
             wait(NULL); // dupa cel ramas asteapta
 
-            // destroy_them();
             info(END, 1, 0);
         }
     }
