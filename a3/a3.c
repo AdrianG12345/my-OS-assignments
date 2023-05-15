@@ -6,36 +6,44 @@
 #include <sys/types.h>
 #include <string.h>
 #include <sys/mman.h>
-
+// int pageSize =  sysconf(_SC_PAGESIZE);
+//     if (pageSize == -1){
+//         perror("FAIL HERE PAGE SIZE");
+//     }
+// int adjustedSize = ((size + pageSize - 1) / pageSize) * pageSize;
 
 int reqPipe, respPipe;
 
-void createSHM()
+int createSHM()
 {
-    ///read that weird number first
+    /// read that weird number first
 
-
-    char* name = "/yp9Eqg";
+    char *name = "/yp9Eqg";
     int size = 4534755;
-    int sharedMemory = shm_open(name, O_CREAT, 664);
-    if (sharedMemory == -1){
+    int sharedMemory = shm_open(name, O_CREAT | O_RDWR, 664);
+    if (sharedMemory == -1)
+    {
         perror("FAILURE TO MAKE SHARED MEMORY");
+        return 1;
     }
 
-    if (ftruncate(sharedMemory, size) == -1) {
-        perror("Failed to set size");
-        exit(1);
+    if (ftruncate(sharedMemory, size) == -1)
+    {
+        perror("Failed to set size with ftruncate");
+        return 1;
     }
 
-    ///3rd paramter: protection (read | write)
-    void* sharedMemoryPtr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, sharedMemory, 0);
-    if (sharedMemoryPtr == MAP_FAILED) {
+    /// 3rd paramter: protection (read | write)
+    void *sharedMemoryPtr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, sharedMemory, 0);
+    if (sharedMemoryPtr == MAP_FAILED)
+    {
         perror("Failed to map the shared memory region");
-        exit(1);
+        return 1;
     }
-    munmap(sharedMemoryPtr, size);
-    close(sharedMemory);
-    shm_unlink(name);
+    // munmap(sharedMemoryPtr, size);
+    // close(sharedMemory);
+    // shm_unlink(name);
+    return 0;
     // if (munmap(sharedMemoryPtr, size) == -1) {
     //     perror("Failed to unmap the shared memory region");
     // }
@@ -49,7 +57,6 @@ void createSHM()
     // if (shm_unlink(name) == -1) {
     //     perror("Failed to remove the shared memory object");
     // }
-
 }
 
 int main()
@@ -114,8 +121,8 @@ int main()
         if (strncmp(buffer, "VARIANT", strlen("VARIANT")) == 0)
         {
             /// 27BC == 10172
-            ///CB 72
-            ///BC 27
+            /// CB 72
+            /// BC 27
             char *varianta = "VARIANT!\0";
             for (int i = 0; i < strlen(varianta); i++)
                 write(respPipe, &varianta[i], 1);
@@ -123,23 +130,58 @@ int main()
             char arr[4];
             arr[2] = 0;
             arr[3] = 0;
-            arr[0] = 188;///BC
-            arr[1] = 39;///27
+            arr[0] = 188; /// BC
+            arr[1] = 39;  /// 27
             for (int i = 0; i < 4; i++)
                 write(respPipe, &arr[i], 1);
-            char* varianta1 = "VALUE!\0";
+            char *varianta1 = "VALUE!\0";
             for (int i = 0; i < strlen(varianta1); i++)
                 write(respPipe, &varianta1[i], 1);
             break;
         }
         else if (strncmp(buffer, "CREATE_SHM", strlen("CREATE_SHM")) == 0)
         {
-            printf("CREATE_SHM\n");
-            createSHM();
+            read(reqPipe, buffer, 4);
+            // int k = createSHM();
+            int k = 0;
+            char *name = "yp9Eqg";
+            int size = 4534755;
+            int sharedMemory = shm_open(name, O_CREAT | O_RDWR, 664);
+            if (sharedMemory == -1)
+            {
+                perror("FAILURE TO MAKE SHARED MEMORY");
+                k = 1;
+            }
+
+            if (ftruncate(sharedMemory, size) == -1)
+            {
+                perror("Failed to set size with ftruncate");
+                k = 1;
+            }
+
+            /// 3rd paramter: protection (read | write)
+            void *sharedMemoryPtr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, sharedMemory, 0);
+            if (sharedMemoryPtr == MAP_FAILED)
+            {
+                perror("Failed to map the shared memory region");
+                k = 1;
+            }
+
+            if (k == 0)
+            {
+                char *msg = "CREATE_SHM!SUCCESS!\0";
+                for (int i = 0; i < strlen(msg); i++)
+                    write(respPipe, &msg[i], 1);
+            }
+            else
+            {
+                char *msg = "CREATE_SHM!ERROR!\0";
+                for (int i = 0; i < strlen(msg); i++)
+                    write(respPipe, &msg[i], 1);
+            }
         }
         else if (strncmp(buffer, "WRITE_TO_SHM", strlen("WRITE_TO_SHM")) == 0)
         {
-
         }
         else if (strncmp(buffer, "MAP_FILE", strlen("MAP_FILE")) == 0)
         {
