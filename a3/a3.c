@@ -84,7 +84,7 @@ int main()
         return 3;
     }
     // Step 4: connect
-    char *conectare = "CONNECT";
+    char *conectare = "CONNECT!";
     if ((write(respPipe, conectare, sizeof(conectare))) == -1)
     {
         unlink(responsePipeString);
@@ -114,7 +114,7 @@ int main()
         if (strncmp(buffer, "VARIANT", sizeof("VARIANT")) == 0)
         {
             /// 27BC == 10172
-            char *varianta = "VARIANT27BCVALUE";
+            char *varianta = "VARIANT!10172VALUE!";
             write(respPipe, varianta, sizeof(varianta));
             break;
         }
