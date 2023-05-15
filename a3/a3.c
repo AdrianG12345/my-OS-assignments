@@ -95,50 +95,65 @@ int main()
     /// step 4 write success
     printf("SUCCESS\n");
 
-    // char c;
+    char c;
     char buffer[256];
     int len;
     int ok = 1;
     while (ok) // until break
     {
         len = 0;
-        read(reqPipe, &buffer[len], sizeof(char)); /// nu citeste nici macar aici;
-        // buffer[len] = c;
+        read(reqPipe, &c, sizeof(char)); /// nu citeste nici macar aici;
+        buffer[len] = c;
         while (buffer[len] != '!')
         {
             len++;
-            read(reqPipe, &buffer[len], sizeof(char));
-            // buffer[len] = c;
+            read(reqPipe, &c, sizeof(char));
+            buffer[len] = c;
         }
 
-        if (strncmp(buffer, "VARIANT", sizeof("VARIANT")) == 0)
+        if (strncmp(buffer, "VARIANT", strlen("VARIANT")) == 0)
         {
             /// 27BC == 10172
-            char *varianta = "VARIANT!10172VALUE!";
-            write(respPipe, varianta, sizeof(varianta));
+            ///CB 72
+            ///BC 27
+            char *varianta = "VARIANT!\0";
+            for (int i = 0; i < strlen(varianta); i++)
+                write(respPipe, &varianta[i], 1);
+
+            char arr[4];
+            arr[2] = 0;
+            arr[3] = 0;
+            arr[0] = 188;///BC
+            arr[1] = 39;///27
+            for (int i = 0; i < 4; i++)
+                write(respPipe, &arr[i], 1);
+            char* varianta1 = "VALUE!\0";
+            for (int i = 0; i < strlen(varianta1); i++)
+                write(respPipe, &varianta1[i], 1);
             break;
         }
-        else if (strncmp(buffer, "CREATE_SHM", sizeof("CREATE_SHM")) == 0)
+        else if (strncmp(buffer, "CREATE_SHM", strlen("CREATE_SHM")) == 0)
         {
+            printf("CREATE_SHM\n");
             createSHM();
         }
-        else if (strncmp(buffer, "WRITE_TO_SHM", sizeof("WRITE_TO_SHM")) == 0)
+        else if (strncmp(buffer, "WRITE_TO_SHM", strlen("WRITE_TO_SHM")) == 0)
         {
 
         }
-        else if (strncmp(buffer, "MAP_FILE", sizeof("MAP_FILE")) == 0)
+        else if (strncmp(buffer, "MAP_FILE", strlen("MAP_FILE")) == 0)
         {
         }
-        else if (strncmp(buffer, "READ_FROM_FILE_OFFSET", sizeof("READ_FROM_FILE_OFFSET")) == 0)
+        else if (strncmp(buffer, "READ_FROM_FILE_OFFSET", strlen("READ_FROM_FILE_OFFSET")) == 0)
         {
         }
-        else if (strncmp(buffer, "READ_FROM_FILE_SECTION", sizeof("READ_FROM_FILE_SECTION")) == 0)
+        else if (strncmp(buffer, "READ_FROM_FILE_SECTION", strlen("READ_FROM_FILE_SECTION")) == 0)
         {
         }
-        else if (strncmp(buffer, "READ_FROM_LOGICAL_SPACE_OFFSET", sizeof("READ_FROM_LOGICAL_SPACE_OFFSET")) == 0)
+        else if (strncmp(buffer, "READ_FROM_LOGICAL_SPACE_OFFSET", strlen("READ_FROM_LOGICAL_SPACE_OFFSET")) == 0)
         {
         }
-        else if (strncmp(buffer, "EXIT", sizeof("EXIT")) == 0)
+        else if (strncmp(buffer, "EXIT", strlen("EXIT")) == 0)
         {
             break;
         }
