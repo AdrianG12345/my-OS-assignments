@@ -127,8 +127,25 @@ Test score: 10 / 10
 [TESTER] sending string 'READ_FROM_LOGICAL_SPACE_OFFSET'
 [TESTER] sending number 2161
 [TESTER] sending number 293
+[TESTER] received string 'READ_FROM_LOGICAL_SPACE_OFFSET'
+[TESTER] received string 'SUCCESS'
+[TESTER] sending string 'READ_FROM_LOGICAL_SPACE_OFFSET'
+[TESTER] sending number 23260
+[TESTER] sending number 2093
+[TESTER] received string 'READ_FROM_LOGICAL_SPACE_OFFSET'
+[TESTER] received string 'SUCCESS'
+[TESTER] sending string 'READ_FROM_LOGICAL_SPACE_OFFSET'
+[TESTER] sending number 30206
+[TESTER] sending number 2017
+[TESTER] received string 'READ_FROM_LOGICAL_SPACE_OFFSET'
+[TESTER] received string 'SUCCESS'
+[TESTER] sending string 'READ_FROM_LOGICAL_SPACE_OFFSET'
+[TESTER] sending number 70200
+[TESTER] sending number 1928
+[TESTER] received string 'READ_FROM_LOGICAL_SPACE_OFFSET'
+[TESTER] received string 'SUCCESS'
 [TESTER] sending string 'EXIT'
-Test score: 2 / 10
+Test score: 10 / 10
 
-Total score: 62 / 70
-Assignment grade: 88.57 / 100
+Total score: 70 / 70
+Assignment grade: 100.00 / 100

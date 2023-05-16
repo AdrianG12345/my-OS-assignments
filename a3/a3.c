@@ -103,20 +103,68 @@ int findSectOffset(int sectNr)
 {
     if (filePtr == NULL)
         return -1;
-   // unsigned int headerSize = 0;
+    // unsigned int headerSize = 0;
     // char* data = (char*) filePtr;
-    //memcpy(&headerSize, filePtr + fileSize - 4, 2);
-  
+    // memcpy(&headerSize, filePtr + fileSize - 4, 2);
+
     short headerSize = 0;
-    headerSize = *(short*)((char*)filePtr + fileSize - 4);
-    //  printf("headerSize: %d\n", headerSize);
+    headerSize = *(short *)((char *)filePtr + fileSize - 4);
+
     int offset = 0;
     int sectionSize = 18;
-    if ( sectNr > (headerSize - 7) / sectionSize)
+    if (sectNr > (headerSize - 7) / sectionSize)
         return -2;
     memcpy(&offset, filePtr + fileSize - headerSize + 3 + (sectNr - 1) * sectionSize + 10, sizeof(offset));
 
     return offset;
+}
+int ultimul(int arg, int nrBytes)
+{
+    ///2048
+    int ramas = arg;
+
+    if (filePtr == NULL)
+        return -1;
+    short headerSize = 0;
+    headerSize = *(short *)((char *)filePtr + fileSize - 4);
+
+    char name[100];
+    int type[100],size[100],offset[100];
+    int numarSect = 0;
+    memcpy(&numarSect, filePtr + fileSize - headerSize + 2, 1);
+    char* ptr = (char*)filePtr;
+    ptr += fileSize - headerSize + 3;
+    //printf("headerSize%d nrSect:%d\n", headerSize, numarSect);
+    for (int i = 1; i <= numarSect; i++)
+    {
+        memcpy(name, ptr, 6); 
+        ptr += 6;
+        memcpy(&type[i], ptr, 4);
+        ptr += 4;
+        memcpy(&offset[i], ptr, 4);
+        ptr += 4;
+        memcpy(&size[i], ptr, 4);
+        ptr += 4;
+        //printf("i:%d type:%d size:%d offset:%d\n",i, type[i],offset[i],size[i]);
+    }
+    int j;
+    for (j = 1; j <= numarSect; j++)
+    {
+        int nr;
+        int rest = size[j] % 2048;
+        if (rest == 0)
+            nr = size[j];
+        else
+            nr = size[j] + 2048 - rest;
+
+        if (nr >= ramas)
+            break;///seciuntea buna
+        ramas -= nr;
+    }
+    int k = readFromFileOffset(offset[j] + ramas, nrBytes);
+
+    return k;
+
 }
 
 int main()
@@ -319,7 +367,7 @@ int main()
             // printf("sectionOffset:%d sectNr:%d nrBytes:%d offset:%d\n", sectionOffset, sectNr, nrBytes,offset);
             if (k == 0)
             {
-                
+
                 k = readFromFileOffset(sectionOffset + offset, nrBytes);
                 if (k == 0)
                 {
@@ -343,7 +391,24 @@ int main()
         }
         else if (strncmp(buffer, "READ_FROM_LOGICAL_SPACE_OFFSET", strlen("READ_FROM_LOGICAL_SPACE_OFFSET")) == 0)
         {
-            ok = 0;
+            unsigned int logicalOffset, nrBytes;
+            read(reqPipe, &logicalOffset, sizeof(logicalOffset));
+            read(reqPipe, &nrBytes, sizeof(nrBytes));
+            // printf("logOffset:%d nrBytes:%d\n", logicalOffset, nrBytes);
+            int k = ultimul(logicalOffset, nrBytes); 
+            if (k == 0)
+            {
+                char *msg = "READ_FROM_LOGICAL_SPACE_OFFSET!SUCCESS!\0";
+                for (int i = 0; i < strlen(msg); i++)
+                    write(respPipe, &msg[i], 1);
+            }
+            else
+            {
+                char *msg = "READ_FROM_LOGICAL_SPACE_OFFSET!ERROR!\0";
+                for (int i = 0; i < strlen(msg); i++)
+                    write(respPipe, &msg[i], 1);
+            }
+            ///desenul;
         }
         else if (strncmp(buffer, "EXIT", strlen("EXIT")) == 0)
         {
