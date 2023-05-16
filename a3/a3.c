@@ -13,11 +13,10 @@
 // int adjustedSize = ((size + pageSize - 1) / pageSize) * pageSize;
 
 int reqPipe, respPipe;
+void *sharedMemoryPtr;
 
 int createSHM()
 {
-    /// read that weird number first
-
     char *name = "/yp9Eqg";
     int size = 4534755;
     int sharedMemory = shm_open(name, O_CREAT | O_RDWR, 664);
@@ -34,16 +33,17 @@ int createSHM()
     }
 
     /// 3rd paramter: protection (read | write)
-    void *sharedMemoryPtr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, sharedMemory, 0);
+    sharedMemoryPtr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, sharedMemory, 0);
     if (sharedMemoryPtr == MAP_FAILED)
     {
         perror("Failed to map the shared memory region");
         return 1;
     }
+    return 0;
     // munmap(sharedMemoryPtr, size);
     // close(sharedMemory);
     // shm_unlink(name);
-    return 0;
+
     // if (munmap(sharedMemoryPtr, size) == -1) {
     //     perror("Failed to unmap the shared memory region");
     // }
@@ -57,6 +57,29 @@ int createSHM()
     // if (shm_unlink(name) == -1) {
     //     perror("Failed to remove the shared memory object");
     // }
+}
+int mapFile(char *path)
+{
+
+    int fd = open(path, O_RDONLY);
+    if (fd == -1)
+    {
+        return 1;
+    }
+    struct stat st;
+    if (fstat(fd, &st) == -1)
+    {
+        return 1;
+    }
+    off_t fileSize = st.st_size;
+
+    void *filePtr = mmap(NULL, fileSize, PROT_READ, MAP_PRIVATE, fd, 0);
+    if (filePtr == MAP_FAILED)
+    {
+        return 1;
+    }
+
+    return 0;
 }
 
 int main()
@@ -102,25 +125,25 @@ int main()
     /// step 4 write success
     printf("SUCCESS\n");
 
-    char c;
+    // char c;
     char buffer[256];
     int len;
     int ok = 1;
     while (ok) // until break
     {
         len = 0;
-        read(reqPipe, &c, sizeof(char)); /// nu citeste nici macar aici;
-        buffer[len] = c;
+        read(reqPipe, &buffer[len], sizeof(char)); /// nu citeste nici macar aici;
+        // buffer[len] = c;
         while (buffer[len] != '!')
         {
             len++;
-            read(reqPipe, &c, sizeof(char));
-            buffer[len] = c;
+            read(reqPipe, &buffer[len], sizeof(char));
+            // buffer[len] = c;
         }
 
         if (strncmp(buffer, "VARIANT", strlen("VARIANT")) == 0)
         {
-            /// 27BC == 10172
+            /// 00 00 27 BC == 10172
             /// CB 72
             /// BC 27
             char *varianta = "VARIANT!\0";
@@ -142,31 +165,7 @@ int main()
         else if (strncmp(buffer, "CREATE_SHM", strlen("CREATE_SHM")) == 0)
         {
             read(reqPipe, buffer, 4);
-            // int k = createSHM();
-            int k = 0;
-            char *name = "yp9Eqg";
-            int size = 4534755;
-            int sharedMemory = shm_open(name, O_CREAT | O_RDWR, 664);
-            if (sharedMemory == -1)
-            {
-                perror("FAILURE TO MAKE SHARED MEMORY");
-                k = 1;
-            }
-
-            if (ftruncate(sharedMemory, size) == -1)
-            {
-                perror("Failed to set size with ftruncate");
-                k = 1;
-            }
-
-            /// 3rd paramter: protection (read | write)
-            void *sharedMemoryPtr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, sharedMemory, 0);
-            if (sharedMemoryPtr == MAP_FAILED)
-            {
-                perror("Failed to map the shared memory region");
-                k = 1;
-            }
-
+            int k = createSHM();
             if (k == 0)
             {
                 char *msg = "CREATE_SHM!SUCCESS!\0";
@@ -182,24 +181,73 @@ int main()
         }
         else if (strncmp(buffer, "WRITE_TO_SHM", strlen("WRITE_TO_SHM")) == 0)
         {
+            unsigned int offset = 0;
+            unsigned int val;
+            read(reqPipe, &offset, sizeof(offset));
+            read(reqPipe, &val, sizeof(val));
+            // printf("%d %d\n", offset, val);
+            int size = 4534755;
+            if (sharedMemoryPtr == NULL || offset < 0 || offset + 4 > size) // cazuri de eroare
+            {
+                /// NU AM SHARED MEMORY sau unde sa scriu
+                char *msg = "WRITE_TO_SHM!ERROR!\0";
+                for (int i = 0; i < strlen(msg); i++)
+                    write(respPipe, &msg[i], 1);
+            }
+            else
+            {
+                void *newLocation = sharedMemoryPtr + offset;
+                memcpy(newLocation, &val, sizeof(val));
+                char *msg = "WRITE_TO_SHM!SUCCESS!\0";
+                for (int i = 0; i < strlen(msg); i++)
+                    write(respPipe, &msg[i], 1);
+            }
         }
         else if (strncmp(buffer, "MAP_FILE", strlen("MAP_FILE")) == 0)
         {
+            char path[256];
+            int lungime = 0;
+            read(reqPipe, &path[lungime], sizeof(char)); /// nu citeste nici macar aici;
+            while (path[lungime] != '!')
+            {
+                lungime++;
+                read(reqPipe, &path[lungime], sizeof(char));
+            }
+            // path[lungime] == '!';
+            path[lungime] = '\0';
+            int k = mapFile(path);
+            if (k == 0)
+            {
+                char *msg = "MAP_FILE!SUCCESS!\0";
+                for (int i = 0; i < strlen(msg); i++)
+                    write(respPipe, &msg[i], 1);
+            }
+            else
+            {
+                char *msg = "MAP_FILE!ERROR!\0";
+                for (int i = 0; i < strlen(msg); i++)
+                    write(respPipe, &msg[i], 1);
+            }
+
+            ok = 0;
         }
         else if (strncmp(buffer, "READ_FROM_FILE_OFFSET", strlen("READ_FROM_FILE_OFFSET")) == 0)
         {
+            ok = 0;
         }
         else if (strncmp(buffer, "READ_FROM_FILE_SECTION", strlen("READ_FROM_FILE_SECTION")) == 0)
         {
+            ok = 0;
         }
         else if (strncmp(buffer, "READ_FROM_LOGICAL_SPACE_OFFSET", strlen("READ_FROM_LOGICAL_SPACE_OFFSET")) == 0)
         {
+            ok = 0;
         }
         else if (strncmp(buffer, "EXIT", strlen("EXIT")) == 0)
         {
+            ok = 0;
             break;
         }
-        ok = 0;
     }
 
     // Close the pipes
