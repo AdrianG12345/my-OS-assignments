@@ -1,3 +1,11 @@
+SUCCESS
+SUCCESS
+SUCCESS
+SUCCESS
+SUCCESS
+SUCCESS
+SUCCESS
+SUCCESS
 [1;35mTesting ping...[0m
 [TESTER] received string 'CONNECT'
 [TESTER] sending string 'VARIANT'
@@ -61,8 +69,15 @@ Test score: 5 / 5
 [TESTER] sending string 'READ_FROM_FILE_OFFSET'
 [TESTER] sending number 34829
 [TESTER] sending number 50
+[TESTER] received string 'READ_FROM_FILE_OFFSET'
+[TESTER] received string 'ERROR'
+[TESTER] sending string 'READ_FROM_FILE_OFFSET'
+[TESTER] sending number 17414
+[TESTER] sending number 50
+[TESTER] received string 'READ_FROM_FILE_OFFSET'
+[TESTER] received string 'SUCCESS'
 [TESTER] sending string 'EXIT'
-Test score: 3 / 10
+Test score: 10 / 10
 [1;35mTesting read_section...[0m
 [TESTER] received string 'CONNECT'
 [TESTER] sending string 'CREATE_SHM'
@@ -77,8 +92,28 @@ Test score: 3 / 10
 [TESTER] sending number 7
 [TESTER] sending number 0
 [TESTER] sending number 100
+[TESTER] received string 'READ_FROM_FILE_SECTION'
+[TESTER] received string 'ERROR'
+[TESTER] sending string 'READ_FROM_FILE_SECTION'
+[TESTER] sending number 3
+[TESTER] sending number 218
+[TESTER] sending number 675
+[TESTER] received string 'READ_FROM_FILE_SECTION'
+[TESTER] received string 'SUCCESS'
+[TESTER] sending string 'READ_FROM_FILE_SECTION'
+[TESTER] sending number 2
+[TESTER] sending number 748
+[TESTER] sending number 3644
+[TESTER] received string 'READ_FROM_FILE_SECTION'
+[TESTER] received string 'SUCCESS'
+[TESTER] sending string 'READ_FROM_FILE_SECTION'
+[TESTER] sending number 5
+[TESTER] sending number 791
+[TESTER] sending number 820
+[TESTER] received string 'READ_FROM_FILE_SECTION'
+[TESTER] received string 'SUCCESS'
 [TESTER] sending string 'EXIT'
-Test score: 2 / 10
+Test score: 10 / 10
 [1;35mTesting read_logical...[0m
 [TESTER] received string 'CONNECT'
 [TESTER] sending string 'CREATE_SHM'
@@ -90,10 +125,10 @@ Test score: 2 / 10
 [TESTER] received string 'MAP_FILE'
 [TESTER] received string 'SUCCESS'
 [TESTER] sending string 'READ_FROM_LOGICAL_SPACE_OFFSET'
-[TESTER] sending number 12923
-[TESTER] sending number 379
+[TESTER] sending number 2161
+[TESTER] sending number 293
 [TESTER] sending string 'EXIT'
 Test score: 2 / 10
 
-Total score: 47 / 70
-Assignment grade: 67.14 / 100
+Total score: 62 / 70
+Assignment grade: 88.57 / 100

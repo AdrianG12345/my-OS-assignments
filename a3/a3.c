@@ -14,6 +14,8 @@
 
 int reqPipe, respPipe;
 void *sharedMemoryPtr;
+int fd, fileSize;
+void *filePtr;
 
 int createSHM()
 {
@@ -61,7 +63,7 @@ int createSHM()
 int mapFile(char *path)
 {
 
-    int fd = open(path, O_RDONLY);
+    fd = open(path, O_RDONLY);
     if (fd == -1)
     {
         return 1;
@@ -71,15 +73,50 @@ int mapFile(char *path)
     {
         return 1;
     }
-    off_t fileSize = st.st_size;
-
-    void *filePtr = mmap(NULL, fileSize, PROT_READ, MAP_PRIVATE, fd, 0);
+    fileSize = st.st_size;
+    ////protected read and it is private
+    filePtr = mmap(NULL, fileSize, PROT_READ, MAP_SHARED, fd, 0);
     if (filePtr == MAP_FAILED)
     {
         return 1;
     }
 
     return 0;
+}
+int readFromFileOffset(unsigned int offset, unsigned int nrBytes)
+{
+    char *data = (char *)filePtr;
+    // char* intermediar = malloc(sizeof(char) * nrBytes);
+    // for (int i = 0; i < nrBytes; i++)
+    // {
+    //     intermediar[i] = data[offset + i];
+    // }
+    // memcpy(sharedMemoryPtr, intermediar, nrBytes);
+    memcpy(sharedMemoryPtr, data + offset, nrBytes);
+
+    // free(intermediar);
+
+    return 0;
+}
+
+int findSectOffset(int sectNr)
+{
+    if (filePtr == NULL)
+        return -1;
+   // unsigned int headerSize = 0;
+    // char* data = (char*) filePtr;
+    //memcpy(&headerSize, filePtr + fileSize - 4, 2);
+  
+    short headerSize = 0;
+    headerSize = *(short*)((char*)filePtr + fileSize - 4);
+    //  printf("headerSize: %d\n", headerSize);
+    int offset = 0;
+    int sectionSize = 18;
+    if ( sectNr > (headerSize - 7) / sectionSize)
+        return -2;
+    memcpy(&offset, filePtr + fileSize - headerSize + 3 + (sectNr - 1) * sectionSize + 10, sizeof(offset));
+
+    return offset;
 }
 
 int main()
@@ -133,12 +170,10 @@ int main()
     {
         len = 0;
         read(reqPipe, &buffer[len], sizeof(char)); /// nu citeste nici macar aici;
-        // buffer[len] = c;
         while (buffer[len] != '!')
         {
             len++;
             read(reqPipe, &buffer[len], sizeof(char));
-            // buffer[len] = c;
         }
 
         if (strncmp(buffer, "VARIANT", strlen("VARIANT")) == 0)
@@ -185,7 +220,6 @@ int main()
             unsigned int val;
             read(reqPipe, &offset, sizeof(offset));
             read(reqPipe, &val, sizeof(val));
-            // printf("%d %d\n", offset, val);
             int size = 4534755;
             if (sharedMemoryPtr == NULL || offset < 0 || offset + 4 > size) // cazuri de eroare
             {
@@ -199,8 +233,9 @@ int main()
                 void *newLocation = sharedMemoryPtr + offset;
                 memcpy(newLocation, &val, sizeof(val));
                 char *msg = "WRITE_TO_SHM!SUCCESS!\0";
-                for (int i = 0; i < strlen(msg); i++)
-                    write(respPipe, &msg[i], 1);
+                // for (int i = 0; i < strlen(msg); i++)
+                //     write(respPipe, &msg[i], 1);
+                write(respPipe, msg, strlen(msg));
             }
         }
         else if (strncmp(buffer, "MAP_FILE", strlen("MAP_FILE")) == 0)
@@ -213,7 +248,6 @@ int main()
                 lungime++;
                 read(reqPipe, &path[lungime], sizeof(char));
             }
-            // path[lungime] == '!';
             path[lungime] = '\0';
             int k = mapFile(path);
             if (k == 0)
@@ -228,16 +262,84 @@ int main()
                 for (int i = 0; i < strlen(msg); i++)
                     write(respPipe, &msg[i], 1);
             }
-
-            ok = 0;
         }
         else if (strncmp(buffer, "READ_FROM_FILE_OFFSET", strlen("READ_FROM_FILE_OFFSET")) == 0)
         {
-            ok = 0;
+            unsigned int offset, nrBytes;
+            read(reqPipe, &offset, sizeof(offset));
+            read(reqPipe, &nrBytes, sizeof(nrBytes));
+            int k = 0;
+            if (filePtr == NULL)
+                k = 1;                   /// nu am file
+            if (sharedMemoryPtr == NULL) /// nu am shared memory
+                k = 1;
+            if (offset + nrBytes > fileSize)
+                k = 1;
+
+            if (k == 0)
+            {
+                k = readFromFileOffset(offset, nrBytes);
+                if (k == 0)
+                {
+                    char *msg = "READ_FROM_FILE_OFFSET!SUCCESS!\0";
+                    for (int i = 0; i < strlen(msg); i++)
+                        write(respPipe, &msg[i], 1);
+                }
+                else
+                {
+                    char *msg = "READ_FROM_FILE_OFFSET!ERROR!\0";
+                    for (int i = 0; i < strlen(msg); i++)
+                        write(respPipe, &msg[i], 1);
+                }
+            }
+            else
+            {
+                char *msg = "READ_FROM_FILE_OFFSET!ERROR!\0";
+                for (int i = 0; i < strlen(msg); i++)
+                    write(respPipe, &msg[i], 1);
+            }
         }
         else if (strncmp(buffer, "READ_FROM_FILE_SECTION", strlen("READ_FROM_FILE_SECTION")) == 0)
         {
-            ok = 0;
+            unsigned int sectNr, offset, nrBytes;
+            read(reqPipe, &sectNr, sizeof(sectNr));
+            read(reqPipe, &offset, sizeof(offset));
+            read(reqPipe, &nrBytes, sizeof(nrBytes));
+            /// find section
+            int sectionOffset = findSectOffset(sectNr);
+            int k = 0;
+            if (filePtr == NULL)
+                k = 1;                   /// nu am file
+            if (sharedMemoryPtr == NULL) /// nu am shared memory
+                k = 1;
+            if (sectionOffset + offset + nrBytes > fileSize)
+                k = 1;
+            if (sectionOffset < 0)
+                k = 1;
+            // printf("sectionOffset:%d sectNr:%d nrBytes:%d offset:%d\n", sectionOffset, sectNr, nrBytes,offset);
+            if (k == 0)
+            {
+                
+                k = readFromFileOffset(sectionOffset + offset, nrBytes);
+                if (k == 0)
+                {
+                    char *msg = "READ_FROM_FILE_SECTION!SUCCESS!\0";
+                    for (int i = 0; i < strlen(msg); i++)
+                        write(respPipe, &msg[i], 1);
+                }
+                else
+                {
+                    char *msg = "READ_FROM_FILE_SECTION!ERROR!\0";
+                    for (int i = 0; i < strlen(msg); i++)
+                        write(respPipe, &msg[i], 1);
+                }
+            }
+            else
+            {
+                char *msg = "READ_FROM_FILE_SECTION!ERROR!\0";
+                for (int i = 0; i < strlen(msg); i++)
+                    write(respPipe, &msg[i], 1);
+            }
         }
         else if (strncmp(buffer, "READ_FROM_LOGICAL_SPACE_OFFSET", strlen("READ_FROM_LOGICAL_SPACE_OFFSET")) == 0)
         {
